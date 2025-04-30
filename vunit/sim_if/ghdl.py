@@ -118,14 +118,7 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
         """
         Get the output of 'ghdl --version'
         """
-<<<<<<< HEAD
-        print(str(Path(prefix) / cls.executable))
-        return subprocess.check_output(
-            [str(Path(prefix) / cls.executable), "--version"]
-        ).decode()
-=======
         return subprocess.check_output([str(Path(prefix) / cls.executable), "--version"]).decode()
->>>>>>> 62c904db092f64ac8c334af48c35eb8b8c96edb4
 
     @classmethod
     def determine_backend(cls, prefix):
@@ -133,11 +126,7 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
         Determine the GHDL backend
         """
         mapping = {
-<<<<<<< HEAD
-            r"mcode (JIT )?code generator": "mcode",
-=======
             r"mcode code generator": "mcode",
->>>>>>> 62c904db092f64ac8c334af48c35eb8b8c96edb4
             r"llvm (\d+\.\d+\.\d+ )?code generator": "llvm",
             r"GCC (back-end|\d+\.\d+\.\d+) code generator": "gcc",
         }
@@ -148,13 +137,8 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
                 LOGGER.debug("Detected GHDL %s", match.group(0))
                 return backend
 
-<<<<<<< HEAD
-        LOGGER.error("Could not detect known backend by parsing 'ghdl --version'")
-        print("Expected to find one of %r" % mapping.keys())
-=======
         LOGGER.error("Could not detect known LLVM backend by parsing 'ghdl --version'")
         print(f"Expected to find one of {mapping.keys()!r}")
->>>>>>> 62c904db092f64ac8c334af48c35eb8b8c96edb4
         print("== Output of 'ghdl --version'" + ("=" * 60))
         print(output)
         print("=============================" + ("=" * 60))
