@@ -37,7 +37,7 @@ class Builtins(object):
         def add(name, deps=tuple()):
             self._builtins_adder.add_type(name, getattr(self, f"_add_{name!s}"), deps)
 
-        add("array_util")  # Removed in v5.0.0
+        add("array_util")
         add("com")
         add("verification_components", ["com", "osvvm"])
         add("osvvm")

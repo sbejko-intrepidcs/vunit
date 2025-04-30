@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2024, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 # pylint: disable=too-many-public-methods, too-many-lines
 
@@ -282,9 +282,7 @@ if run("Test_2")
         test_bench.set_generic("global_value", "global value")
 
         test_bench.add_config(name="value=1", generics=dict(value=1, global_value="local value"))
-        test_bench.add_config(
-            name="value=2", generics=dict(value=2), attributes={".foo": "bar"}, vhdl_configuration_name="cfg"
-        )
+        test_bench.add_config(name="value=2", generics=dict(value=2), attributes={".foo": "bar"})
 
         self.assertRaises(
             AttributeException,
@@ -301,13 +299,11 @@ if run("Test_2")
             {"value": 1, "global_value": "local value"},
         )
         self.assertEqual(get_config_of(tests, "lib.tb_entity.value=1").attributes, {})
-        self.assertIsNone(get_config_of(tests, "lib.tb_entity.value=1").vhdl_configuration_name)
         self.assertEqual(
             get_config_of(tests, "lib.tb_entity.value=2").generics,
             {"value": 2, "global_value": "global value"},
         )
         self.assertEqual(get_config_of(tests, "lib.tb_entity.value=2").attributes, {".foo": "bar"})
-        self.assertEqual(get_config_of(tests, "lib.tb_entity.value=2").vhdl_configuration_name, "cfg")
 
     @with_tempdir
     def test_test_case_add_config(self, tempdir):

@@ -4,18 +4,11 @@ from sys import path as sys_path
 from os import environ
 from os.path import abspath
 from pathlib import Path
-from shutil import copyfile
 
 
 ROOT = Path(__file__).resolve().parent
 
 sys_path.insert(0, abspath("."))
-
-from create_release_notes import create_release_notes
-
-create_release_notes()
-
-copyfile(str(ROOT.parent / "LICENSE.rst"), str(ROOT / "license.rst"))
 
 # -- Generate examples.inc ----------------------------------------------------
 
@@ -33,6 +26,7 @@ extensions = [
     "sphinx.ext.extlinks",
     "sphinx.ext.intersphinx",
     "sphinx.ext.todo",
+    "sphinx.ext.autosectionlabel",
     "sphinxarg.ext",  # Automatic argparse command line argument documentation
 ]
 
@@ -52,7 +46,7 @@ source_suffix = {
 master_doc = "index"
 
 project = "VUnit"
-copyright = "2014-2024, Lars Asplund"
+copyright = "2014-2023, Lars Asplund"
 author = "LarsAsplund, kraigher and contributors"
 
 version = ""
@@ -115,7 +109,6 @@ htmlhelp_basename = "VUnitDoc"
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3.8/", None),
     "pytest": ("https://docs.pytest.org/en/latest/", None),
-    "osvb": ("https://umarcor.github.io/osvb", None),
 }
 
 # -- ExtLinks -----------------------------------------------------------------

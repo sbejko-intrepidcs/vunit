@@ -1,11 +1,17 @@
-.. _vc_user_guide:
+.. _vc_library:
 
-Verification Components User Guide
-==================================
+Verification Component Library
+===============================
 
 .. NOTE::
   This library is released as a *BETA* version.
   This means non-backwards compatible changes are still likely based on feedback from our users.
+
+The VUnit Verification Component Library (VCL) contains a number of useful :ref:`Verification Components <verification_components>`
+(VC) as well as a set of utilities for writing your own verification component.
+Verification components allow a better overview in the test bench by raising the abstraction level of bus transactions.
+Even if you do not need the advanced features that VCs offer you may still benefit from using pre-verified models of an
+AXI-bus instead of re-implementing it yourself.
 
 Included verification components (VCs):
 

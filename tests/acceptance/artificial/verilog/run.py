@@ -2,22 +2,19 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2024, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 from pathlib import Path
 from glob import glob
-from vunit import VUnit
-
+from vunit.verilog import VUnit
 
 root = Path(__file__).parent
 
 vu = VUnit.from_argv()
-vu.add_verilog_builtins()
-
 lib = vu.add_library("lib")
 lib2 = vu.add_library("lib2")
-
-for file in glob(str(root / "*.sv")):
+files = glob(str(root / "*.sv"))
+for file in files:
     if "tb_with_parameter_config" in file:
         lib2.add_source_files(file, defines={"DEFINE_FROM_RUN_PY": ""})
     else:
@@ -68,5 +65,4 @@ def configure_tb_same_sim_all_pass(ui):
 configure_tb_with_parameter_config()
 configure_tb_same_sim_all_pass(vu)
 lib.module("tb_other_file_tests").scan_tests_from_file(str(root / "other_file_tests.sv"))
-
 vu.main()

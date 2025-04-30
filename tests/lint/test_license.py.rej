@@ -1,0 +1,10 @@
+diff a/tests/lint/test_license.py b/tests/lint/test_license.py	(rejected hunks)
+@@ -33,7 +33,7 @@
+ RE_LOG_DATE = re.compile(r"Date:\s*(?P<year>20\d\d)-\d\d-\d\d")
+ 
+ FIRST_YEAR = 2014
+-LAST_YEAR = 2023
++LAST_YEAR = 2024
+ 
+ 
+ class TestLicense(unittest.TestCase):

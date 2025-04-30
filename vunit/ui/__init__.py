@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2024, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 # pylint: disable=too-many-lines
 
@@ -60,12 +60,14 @@ class VUnit(object):  # pylint: disable=too-many-instance-attributes, too-many-p
     def from_argv(
         cls,
         argv=None,
+        compile_builtins: Optional[bool] = True,
         vhdl_standard: Optional[str] = None,
     ):
         """
         Create VUnit instance from command line arguments.
 
         :param argv: Use explicit argv instead of actual command line argument
+        :param compile_builtins: Do not compile builtins. Used for VUnit internal testing.
         :param vhdl_standard: The VHDL standard used to compile files,
                               if None the VUNIT_VHDL_STANDARD environment variable is used
         :returns: A :class:`.VUnit` object instance
@@ -78,18 +80,26 @@ class VUnit(object):  # pylint: disable=too-many-instance-attributes, too-many-p
            prj = VUnit.from_argv()
 
         .. IMPORTANT::
-          As of VUnit v5, option ``compile_builtins`` is removed.
-          VHDL users need to call method :meth:`add_vhdl_builtins` explicitly in order to preserve the
+          Option ``compile_builtins`` is deprecated and it will be removed in an upcoming release.
+          VHDL users will need to call method :meth:`add_vhdl_builtins` explicitly in order to preserve the
           functionality.
           See :vunit_issue:`777`.
+          It is therefore recommended to now use the following procedure:
+
+          .. code-block:: python
+
+             from vunit import VUnit
+             prj = VUnit.from_argv(compile_builtins=False)
+             prj.add_vhdl_builtins()
         """
         args = VUnitCLI().parse_args(argv=argv)
-        return cls.from_args(args, vhdl_standard=vhdl_standard)
+        return cls.from_args(args, compile_builtins=compile_builtins, vhdl_standard=vhdl_standard)
 
     @classmethod
     def from_args(
         cls,
         args,
+        compile_builtins: Optional[bool] = True,
         vhdl_standard: Optional[str] = None,
     ):
         """
@@ -99,21 +109,23 @@ class VUnit(object):  # pylint: disable=too-many-instance-attributes, too-many-p
         adding custom command line options.
 
         :param args: The parsed argument namespace object
+        :param compile_builtins: Do not compile builtins. Used for VUnit internal testing.
         :param vhdl_standard: The VHDL standard used to compile files,
                               if None the VUNIT_VHDL_STANDARD environment variable is used
         :returns: A :class:`.VUnit` object instance
 
         .. IMPORTANT::
-          As of VUnit v5, option ``compile_builtins`` is removed.
-          VHDL users need to call method :meth:`add_vhdl_builtins` explicitly in order to preserve the
+          Option ``compile_builtins`` is deprecated and it will be removed in an upcoming release.
+          VHDL users will need to call method :meth:`add_vhdl_builtins` explicitly in order to preserve the
           functionality.
           See :vunit_issue:`777`.
         """
-        return cls(args, vhdl_standard=vhdl_standard)
+        return cls(args, compile_builtins=compile_builtins, vhdl_standard=vhdl_standard)
 
     def __init__(
         self,
         args,
+        compile_builtins: Optional[bool] = True,
         vhdl_standard: Optional[str] = None,
     ):
         self._args = args
@@ -164,6 +176,22 @@ class VUnit(object):  # pylint: disable=too-many-instance-attributes, too-many-p
         self._test_bench_list = TestBenchList(database=database)
 
         self._builtins = Builtins(self, self._vhdl_standard, simulator_class)
+        if compile_builtins:
+            self.add_vhdl_builtins()
+            hline = "=" * 75
+            print(hline)
+            LOGGER.warning(
+                """Option 'compile_builtins' of methods 'from_args' and 'from_argv' is deprecated.
+In future releases, it will be removed and builtins will need to be added explicitly.
+To prepare for upcoming changes, it is recommended to apply the following modifications in the run script now:
+
+* Use `from_argv(compile_builtins=False)` or `from_args(compile_builtins=False)`.
+* Add an explicit call to 'add_vhdl_builtins'.
+
+See https://github.com/VUnit/vunit/issues/777.
+"""
+            )
+            print(hline)
 
     def _create_database(self):
         """
@@ -976,19 +1004,17 @@ other preprocessors. Lowest value first. The order between preprocessors with th
         Add VUnit Verilog builtin libraries.
 
         .. IMPORTANT::
-          As of VUnit v5, class ``vunit.verilog`` is removed.
-          Verilog users need to call this method explicitly in order to preserve the functionality.
+          Class ``vunit.verilog`` is deprecated and it will be removed in an upcoming release.
+          Verilog users will need to call this method explicitly in order to preserve the functionality.
           See :vunit_issue:`777`.
         """
         self._builtins.add_verilog_builtins()
 
-    def add_vhdl_builtins(self, external=None, use_external_log=None):
+    def add_vhdl_builtins(self, external=None):
         """
         Add VUnit VHDL builtin libraries.
 
         :param external: struct to provide bridges for the external VHDL API.
-        :param use_external_log: path to external implementation of common_log_pkg-body to allow
-            VUnit log messages to be redirected to another logging framework.
 
         :example:
 
@@ -1000,11 +1026,12 @@ other preprocessors. Lowest value first. The order between preprocessors with th
             )
 
         .. IMPORTANT::
-          As of VUnit v5, option ``compile_builtins`` of methods :meth:`from_argv` and :meth:`from_args` is removed.
-          VHDL users need to call this method explicitly in order to preserve the functionality.
+          Option ``compile_builtins`` of methods :meth:`from_argv` and :meth:`from_args` is deprecated and it will be
+          removed in an upcoming release.
+          VHDL users will need to call this method explicitly in order to preserve the functionality.
           See :vunit_issue:`777`.
         """
-        self._builtins.add_vhdl_builtins(external=external, use_external_log=use_external_log)
+        self._builtins.add_vhdl_builtins(external=external)
 
     def add_com(self):
         """

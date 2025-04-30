@@ -4,7 +4,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2024, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 """
 Helper functions to generate content in examples.rst from docstrings in run.py files
@@ -71,7 +71,6 @@ def _get_eg_doc(location: Path, ref):
     title = eg_doc.split("---", 1)[0][0:-1]
     return "\n".join(
         [
-            f".. _examples:{location.parent.name}:{location.name}:\n",
             title,
             "-" * len(title),
             f":vunit_example:`➚ examples/{ref} <{ref!s}>`\n",

@@ -2,16 +2,15 @@
 -- License, v. 2.0. If a copy of the MPL was not distributed with this file,
 -- You can obtain one at http://mozilla.org/MPL/2.0/.
 --
--- Copyright (c) 2014-2024, Lars Asplund lars.anders.asplund@gmail.com
+-- Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 -- Stream slave verification component interface
 
 library ieee;
 use ieee.std_logic_1164.all;
 
-use work.check_pkg.all;
-use work.com_pkg.all;
-use work.com_types_pkg.all;
+context work.vunit_context;
+context work.com_context;
 
 package stream_slave_pkg is
   -- Stream slave handle

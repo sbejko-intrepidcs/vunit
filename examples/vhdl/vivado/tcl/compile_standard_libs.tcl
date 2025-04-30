@@ -12,32 +12,15 @@ set_param general.maxThreads 8
 config_compile_simlib -reset
 config_compile_simlib -cfgopt {riviera.verilog.xpm:-sv2k12 -na sva}
 
-if {${simulator_name} == "xsim"} {
-    compile_simlib -force \
-        -language all \
-        -simulator ${simulator_name} \
-        -verbose  \
-        -library unisim \
-        -library simprim \
-        -library xpm \
-        -family  all \
-        -no_ip_compile \
-        -simulator_exec_path ${simulator_exec_path} \
-        -directory ${output_path}
-} else {
-    compile_simlib -force \
-        -language all \
-        -simulator ${simulator_name} \
-        -32bit  \
-        -verbose  \
-        -library unisim \
-        -library simprim \
-        -library xpm \
-        -family  all \
-        -no_ip_compile \
-        -simulator_exec_path ${simulator_exec_path} \
-        -directory ${output_path}
-}
-
-
-
+compile_simlib -force \
+    -language all \
+    -simulator ${simulator_name} \
+    -32bit  \
+    -verbose  \
+    -library unisim \
+    -library simprim \
+    -library xpm \
+    -family  all \
+    -no_ip_compile \
+    -simulator_exec_path ${simulator_exec_path} \
+    -directory ${output_path}

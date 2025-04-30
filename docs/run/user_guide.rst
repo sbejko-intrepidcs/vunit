@@ -1,7 +1,7 @@
 .. _run_library:
 
-Run Library User Guide
-======================
+Run Library
+===========
 
 Introduction
 ------------
