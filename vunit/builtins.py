@@ -349,7 +349,6 @@ class BuiltinsAdder(object):
         """
         Add builtin with arguments
         """
-
         args = {} if args is None else args
 
         if not self._add_check(name, args):

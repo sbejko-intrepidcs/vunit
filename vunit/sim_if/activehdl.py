@@ -240,14 +240,11 @@ class ActiveHDLInterface(SimulatorInterface):
             set_generic_name_str,
             "-lib",
             config.library_name,
+            config.entity_name,
         ]
 
-        if config.vhdl_configuration_name is None:
-            vsim_flags.append(config.entity_name)
-            if config.architecture_name is not None:
-                vsim_flags.append(config.architecture_name)
-        else:
-            vsim_flags.append(config.vhdl_configuration_name)
+        if config.architecture_name is not None:
+            vsim_flags.append(config.architecture_name)
 
         if config.sim_options.get("enable_coverage", False):
             coverage_file_path = str(Path(output_path) / "coverage.acdb")
@@ -341,105 +338,14 @@ proc vunit_run {} {
         vcover_merge_process.consume_output()
         print("Done merging coverage files")
 
-    @staticmethod
-    def _create_restart_function():
-        """ "
-        Create the vunit_restart function to recompile and restart the simulation
-
-        This function is quite complicated to work around limitations
-        of modelsim not being able to change working directory.
-
-        Thus python is called with an explicit command string that in
-        turn call the python command we actually wanted but in the
-        correct working directory using subprocess.call
-
-        -u flag is needed for continuous output
-        """
-        recompile_command = [sys.executable, "-u", sys.argv[0], "--compile"]
-
-        # Strip --clean from re-compile command
-        # Leave other arguments intact since users can add custom CLI options
-        recompile_command += [arg for arg in sys.argv[1:] if arg != "--clean"]
-
-        recompile_command_visual = " ".join(recompile_command)
-
-        # stderr is intentionally re-directed to stdout so that the tcl's catch
-        # relies on the return code from the python process rather than being
-        # tricked by output going to stderr.  See issue #228.
-        recompile_command_eval = [
-            str(sys.executable),
-            "-u",
-            "-c",
-            (
-                "import sys;"
-                "import subprocess;"
-                f"exit(subprocess.call({recompile_command!r}, "
-                f"cwd={str(Path(os.getcwd()).resolve())!r}, "
-                "bufsize=0, "
-                "universal_newlines=True, "
-                "stdout=sys.stdout, "
-                "stderr=sys.stdout))"
-            ),
-        ]
-        recompile_command_eval_tcl = " ".join([f"{{{part}}}" for part in recompile_command_eval])
-
-        return f"""
-proc vunit_compile {{}} {{
-    set cmd_show {{{recompile_command_visual!s}}}
-    puts "Re-compiling using command ${{cmd_show}}"
-
-    set chan [open |[list {recompile_command_eval_tcl!s}] r]
-    echo $chan
-    while {{[gets $chan line] >= 0}} {{
-        puts $line
-    }}
-
-    if {{[catch {{close $chan}} error_msg]}} {{
-        puts "Re-compile failed"
-        puts ${{error_msg}}
-        return true
-    }} else {{
-        puts "Re-compile finished"
-        return false
-    }}
-}}
-
-proc vunit_restart {{}} {{
-    if {{![vunit_compile]}} {{
-        restart
-        vunit_run
-    }}
-}}
-"""
-
     def _create_common_script(self, config, output_path):
         """
         Create tcl script with functions common to interactive and batch modes
         """
-        tcl = """
-proc vunit_help {} {
-    puts {List of VUnit commands:}
-    puts {vunit_help}
-    puts {  - Prints this help}
-    puts {vunit_load}
-    puts {  - Load design with correct generics for the test}
-    puts {vunit_user_init}
-    puts {  - Re-runs the user defined init file}
-    puts {vunit_run}
-    puts {  - Run test, must do vunit_load first}
-    puts {vunit_compile}
-    puts {  - Recompiles the source files}
-    puts {vunit_restart}
-    puts {  - Recompiles the source files}
-    puts {  - and re-runs the simulation if the compile was successful}
-}
-"""
-
+        tcl = ""
         tcl += get_is_test_suite_done_tcl(get_result_file_name(output_path))
         tcl += self._create_load_function(config, output_path)
         tcl += self._create_run_function()
-        tcl += self._create_restart_function()
-        tcl += "scripterconf -tcl\n"
         return tcl
 
     @staticmethod
@@ -457,27 +363,9 @@ proc vunit_help {} {
         batch_do += "quit -code 0\n"
         return batch_do
 
-    def _create_user_init_function(self, config):
-        """
-        Create the vunit_user_init function which sources the user defined TCL file in
-        simulator_name.init_file.gui.
-        Also defines the vunit_tb_path and the vunit_tb_name variable.
-        """
-        opt_name = self.name + ".init_file.gui"
-        init_file = config.sim_options.get(opt_name, None)
-        tcl = "proc vunit_user_init {} {\n"
-        if init_file is not None:
-            tcl += f"set vunit_tb_name {config.design_unit_name}\n"
-            tcl += f"set vunit_tb_path {fix_path(str(Path(config.tb_path).resolve()))}\n"
-            tcl += f'source "{fix_path(str(Path(init_file).resolve()))!s}"\n'
-        tcl += "    return 0\n"
-        tcl += "}\n"
-        return tcl
-
     def _create_gui_script(self, common_file_name, config):
         """
-        Create the user facing script which loads common functions and prints a help message.
-        Also defines the vunit_tb_path and the vunit_tb_name variable.
+        Create the user facing script which loads common functions and prints a help message
         """
 
         tcl = ""
@@ -488,11 +376,13 @@ proc vunit_help {} {
         for library in self._libraries:
             tcl += f"vmap {library.name!s} {fix_path(library.directory)!s}\n"
 
-        tcl += self._create_user_init_function(config)
-        tcl += "if {![vunit_load]} {\n"
-        tcl += "  vunit_user_init\n"
-        tcl += "  vunit_help\n"
-        tcl += "}\n"
+        tcl += "vunit_load\n"
+
+        init_file = config.sim_options.get(self.name + ".init_file.gui", None)
+        if init_file is not None:
+            tcl += f'source "{fix_path(str(Path(init_file).resolve()))!s}"\n'
+
+        tcl += 'puts "VUnit help: Design already loaded. Use run -all to run the test."\n'
 
         return tcl
 
