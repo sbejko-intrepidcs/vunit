@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2024, Lars Asplund lars.anders.asplund@gmail.com
 #
 # pylint: disable=too-many-public-methods, too-many-lines
 
@@ -925,17 +925,17 @@ Listed 2 files""".splitlines()
 
         # Use methods on all types of interface objects
         for obj in [source_file, ui, lib, lib.get_source_files(file_name), ui.get_libraries("lib")]:
-            obj.set_compile_option("ghdl.flags", [])
-            self.assertEqual(source_file.get_compile_option("ghdl.flags"), [])
+            obj.set_compile_option("ghdl.a_flags", [])
+            self.assertEqual(source_file.get_compile_option("ghdl.a_flags"), [])
 
-            obj.add_compile_option("ghdl.flags", ["1"])
-            self.assertEqual(source_file.get_compile_option("ghdl.flags"), ["1"])
+            obj.add_compile_option("ghdl.a_flags", ["1"])
+            self.assertEqual(source_file.get_compile_option("ghdl.a_flags"), ["1"])
 
-            obj.add_compile_option("ghdl.flags", ["2"])
-            self.assertEqual(source_file.get_compile_option("ghdl.flags"), ["1", "2"])
+            obj.add_compile_option("ghdl.a_flags", ["2"])
+            self.assertEqual(source_file.get_compile_option("ghdl.a_flags"), ["1", "2"])
 
-            obj.set_compile_option("ghdl.flags", ["3"])
-            self.assertEqual(source_file.get_compile_option("ghdl.flags"), ["3"])
+            obj.set_compile_option("ghdl.a_flags", ["3"])
+            self.assertEqual(source_file.get_compile_option("ghdl.a_flags"), ["3"])
 
     def test_default_vhdl_standard_is_used(self):
         file_name = "foo.vhd"
@@ -1281,7 +1281,6 @@ end architecture;
         """Create an instance of the VUnit public interface class"""
         return VUnit.from_argv(
             argv=["--output-path=%s" % self._output_path, "--clean"] + list(args),
-            compile_builtins=False,
         )
 
     def _run_main(self, ui, code=0, post_run=None):

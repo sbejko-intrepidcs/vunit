@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2024, Lars Asplund lars.anders.asplund@gmail.com
 
 """
 Create simulator instances
@@ -15,6 +15,7 @@ from .incisive import IncisiveInterface
 from .modelsim import ModelSimInterface
 from .nvc import NVCInterface
 from .rivierapro import RivieraProInterface
+from .xsim import XSimInterface
 from . import BooleanOption, ListOfStringOption, VHDLAssertLevelOption
 
 
@@ -35,6 +36,7 @@ class SimulatorFactory(object):
             GHDLInterface,
             IncisiveInterface,
             NVCInterface,
+            XSimInterface,
         ]
 
     def _extract_compile_options(self):

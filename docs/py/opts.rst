@@ -11,9 +11,6 @@ The following compilation options are known.
    Extra arguments passed to ``ghdl -a`` command during compilation.
    Must be a list of strings.
 
-``ghdl.flags``
-  Deprecated alias of ``ghdl.a_flags``. It will be removed in future releases.
-
 ``incisive.irun_vhdl_flags``
    Extra arguments passed to the Incisive ``irun`` command when compiling VHDL files.
    Must be a list of strings.
@@ -28,6 +25,14 @@ The following compilation options are known.
 
 ``modelsim.vlog_flags``
    Extra arguments passed to ModelSim ``vlog`` command when compiling Verilog files.
+   Must be a list of strings.
+
+``nvc.a_flags``
+   Extra arguments passed to ``nvc -a`` command during compilation.
+   Must be a list of strings.
+
+``nvc.global_flags``
+   Extra global arguments to pass to ``nvc`` before the ``-a`` command.
    Must be a list of strings.
 
 ``rivierapro.vcom_flags``
@@ -118,6 +123,7 @@ The following simulation options are known.
    using the ``vsim`` command.
    During script evaluation the ``vunit_tb_path`` variable is defined
    as the path of the folder containing the test bench.
+   Additionally, the ``vunit_tb_name`` variable is defined as the name of the test bench.
    Must be a list of strings.
 
 ``modelsim.init_files.before_run``
@@ -131,6 +137,7 @@ The following simulation options are known.
    For example this can be used to configure the waveform viewer.
    During script evaluation the ``vunit_tb_path`` variable is defined
    as the path of the folder containing the test bench.
+   Additionally, the ``vunit_tb_name`` variable is defined as the name of the test bench.
    Must be a string.
 
 ``rivierapro.vsim_flags``
@@ -148,6 +155,7 @@ The following simulation options are known.
    using the ``vsim`` command.
    During script evaluation the ``vunit_tb_path`` variable is defined
    as the path of the folder containing the test bench.
+   Additionally, the ``vunit_tb_name`` variable is defined as the name of the test bench.
    Must be a list of strings.
 
 ``rivierapro.init_files.before_run``
@@ -161,6 +169,7 @@ The following simulation options are known.
    For example this can be used to configure the waveform viewer.
    During script evaluation the ``vunit_tb_path`` variable is defined
    as the path of the folder containing the test bench.
+   Additionally, the ``vunit_tb_name`` variable is defined as the name of the test bench.
    Must be a string.
 
 ``activehdl.vsim_flags``
@@ -175,6 +184,9 @@ The following simulation options are known.
 ``activehdl.init_file.gui``
    A user defined TCL-file that is sourced after the design has been loaded in the GUI.
    For example this can be used to configure the waveform viewer.
+   During script evaluation the ``vunit_tb_path`` variable is defined
+   as the path of the folder containing the test bench.
+   Additionally, the ``vunit_tb_name`` variable is defined as the name of the test bench.
    Must be a string.
 
 ``ghdl.elab_flags``
@@ -196,3 +208,20 @@ The following simulation options are known.
    user from sourcing a list of scripts directly. The following is the current work
    around to sourcing multiple user TCL-files:
    ``source <path/to/script.tcl>``
+
+``nvc.elab_flags``
+   Extra elaboration flags passed to ``nvc -e``.
+   Must be a list of strings.
+
+``nvc.global_flags``
+   Extra global arguments to pass to ``nvc`` before the ``-e`` or ``-r``
+   commands.
+   Must be a list of strings.
+
+``nvc.heap_size``
+   Simulation heap size.
+   Must be a string, for example ``"64m"``.
+
+``nvc.sim_flags``
+   Extra simulation flags passed to ``nvc -r``.
+   Must be a list of strings.

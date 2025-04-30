@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2024, Lars Asplund lars.anders.asplund@gmail.com
 
 """
 Interface for NVC simulator
@@ -35,15 +35,30 @@ class NVCInterface(SimulatorInterface):  # pylint: disable=too-many-instance-att
     supports_colors_in_gui = True
 
     compile_options = [
+        ListOfStringOption("nvc.global_flags"),
         ListOfStringOption("nvc.a_flags"),
     ]
 
     sim_options = [
+        ListOfStringOption("nvc.global_flags"),
         ListOfStringOption("nvc.sim_flags"),
         ListOfStringOption("nvc.elab_flags"),
         StringOption("nvc.heap_size"),
         StringOption("nvc.gtkwave_script.gui"),
     ]
+
+    @staticmethod
+    def add_arguments(parser):
+        """
+        Add command line arguments
+        """
+        group = parser.add_argument_group("nvc", description="NVC specific flags")
+        group.add_argument(
+            "--nvc-fst",
+            action="store_true",
+            default=False,
+            help=("Generate wave file in FST format."),
+        )
 
     @classmethod
     def from_args(cls, args, output_path, **kwargs):
@@ -55,6 +70,8 @@ class NVCInterface(SimulatorInterface):  # pylint: disable=too-many-instance-att
             output_path=output_path,
             prefix=prefix,
             gui=args.gui,
+            num_threads=args.num_threads,
+            nvc_fst=args.nvc_fst,
         )
 
     @classmethod
@@ -68,7 +85,9 @@ class NVCInterface(SimulatorInterface):  # pylint: disable=too-many-instance-att
         self,
         output_path,
         prefix,
+        num_threads,
         gui=False,
+        nvc_fst=False,
         gtkwave_args="",
     ):
         SimulatorInterface.__init__(self, output_path, gui)
@@ -80,6 +99,7 @@ class NVCInterface(SimulatorInterface):  # pylint: disable=too-many-instance-att
 
         self._gui = gui
         self._gtkwave_args = gtkwave_args
+        self._nvc_fst = nvc_fst
         self._vhdl_standard = None
         self._coverage_test_dirs = set()
 
@@ -88,6 +108,10 @@ class NVCInterface(SimulatorInterface):  # pylint: disable=too-many-instance-att
 
         if self.use_color:
             environ["NVC_COLORS"] = "always"
+
+        # Allow NVC to scale its worker thread count based on the number
+        # of VUnit threads and the number of available CPUs.
+        environ["NVC_CONCURRENT_JOBS"] = str(num_threads)
 
     def has_valid_exit_code(self):  # pylint: disable=arguments-differ
         """
@@ -225,13 +249,15 @@ class NVCInterface(SimulatorInterface):  # pylint: disable=too-many-instance-att
             source_file.get_vhdl_standard(), source_file.library.name, source_file.library.directory
         )
 
+        cmd += source_file.compile_options.get("nvc.global_flags", [])
+
         cmd += ["-a"]
         cmd += source_file.compile_options.get("nvc.a_flags", [])
 
         cmd += [source_file.name]
         return cmd
 
-    def simulate(self, output_path, test_suite_name, config, elaborate_only):
+    def simulate(self, output_path, test_suite_name, config, elaborate_only):  # pylint: disable=too-many-branches
         """
         Simulate with entity as top level using generics
         """
@@ -241,7 +267,7 @@ class NVCInterface(SimulatorInterface):  # pylint: disable=too-many-instance-att
         if not script_path.exists():
             makedirs(script_path)
 
-        if self._gui:
+        if self._gui or self._nvc_fst:
             wave_file = script_path / (f"{config.entity_name}.fst")
             if wave_file.exists():
                 remove(wave_file)
@@ -252,11 +278,15 @@ class NVCInterface(SimulatorInterface):  # pylint: disable=too-many-instance-att
         cmd = self._get_command(self._vhdl_standard, config.library_name, libdir)
 
         cmd += ["-H", config.sim_options.get("nvc.heap_size", "64m")]
+        cmd += config.sim_options.get("nvc.global_flags", [])
 
         cmd += ["-e"]
 
         cmd += config.sim_options.get("nvc.elab_flags", [])
-        cmd += [f"{config.entity_name}-{config.architecture_name}"]
+        if config.vhdl_configuration_name is not None:
+            cmd += [config.vhdl_configuration_name]
+        else:
+            cmd += [f"{config.entity_name}-{config.architecture_name}"]
 
         for name, value in config.generics.items():
             cmd += [f"-g{name}={value}"]
@@ -275,7 +305,7 @@ class NVCInterface(SimulatorInterface):  # pylint: disable=too-many-instance-att
             if wave_file:
                 cmd += [f"--wave={wave_file}"]
 
-        print(" ".join(cmd))
+        print(" ".join([f"'{word}'" if " " in word else word for word in cmd]))
 
         status = True
 

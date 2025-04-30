@@ -4,7 +4,7 @@
 -- License, v. 2.0. If a copy of the MPL was not distributed with this file,
 -- You can obtain one at http://mozilla.org/MPL/2.0/.
 --
--- Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
+-- Copyright (c) 2014-2024, Lars Asplund lars.anders.asplund@gmail.com
 
 use work.logger_pkg.all;
 use work.log_levels_pkg.all;
@@ -18,6 +18,7 @@ use std.textio.all;
 use work.event_common_pkg.all;
 use work.event_private_pkg.all;
 use work.checker_pkg.all;
+use work.dict_pkg.all;
 
 package body run_pkg is
   procedure test_runner_setup(
@@ -40,6 +41,8 @@ package body run_pkg is
     if has_key(runner_cfg, "use_color") and boolean'value(get(runner_cfg, "use_color")) then
       enable_colors;
     end if;
+
+    set_string(run_db, "output_path", output_path(runner_cfg));
 
     if not active_python_runner(runner_cfg) then
       set_stop_level(failure);
@@ -139,7 +142,6 @@ package body run_pkg is
   impure function enabled(
     constant name : string)
   return boolean is
-    variable i : natural := 1;
   begin
     if get_run_all(runner_state) then
       return true;
@@ -454,7 +456,7 @@ package body run_pkg is
   begin
     if entry_is_locked(runner_state, get_phase(runner_state)) then
       trace(runner_trace_logger, "Halting on " & replace(runner_phase_t'image(get_phase(runner_state)), "_", " ") & " phase entry gate.");
-      wait on runner until not entry_is_locked(runner_state, get_phase(runner_state)) for max_locked_time;
+      wait on runner until not entry_is_locked(runner_state, get_phase(runner_state));
     end if;
     set_gate_status(runner_state, true);
     trace(runner_trace_logger, "Passed " & replace(runner_phase_t'image(get_phase(runner_state)), "_", " ") & " phase entry gate.");
@@ -466,7 +468,7 @@ package body run_pkg is
   begin
     if exit_is_locked(runner_state, get_phase(runner_state)) then
       trace(runner_trace_logger, "Halting on " & replace(runner_phase_t'image(get_phase(runner_state)), "_", " ") & " phase exit gate.");
-      wait on runner until not exit_is_locked(runner_state, get_phase(runner_state)) for max_locked_time;
+      wait on runner until not exit_is_locked(runner_state, get_phase(runner_state));
     end if;
     set_gate_status(runner_state, false);
     trace(runner_trace_logger, "Passed " & replace(runner_phase_t'image(get_phase(runner_state)), "_", " ") & " phase exit gate.");

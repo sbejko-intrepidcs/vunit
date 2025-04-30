@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2024, Lars Asplund lars.anders.asplund@gmail.com
 
 """
 Interface for GHDL simulator
@@ -17,7 +17,6 @@ import re
 import shutil
 from json import dump
 from sys import stdout  # To avoid output catched in non-verbose mode
-from warnings import warn
 from ..exceptions import CompileError
 from ..ostools import Process
 from . import SimulatorInterface, ListOfStringOption, StringOption, BooleanOption
@@ -38,7 +37,7 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
 
     compile_options = [
         ListOfStringOption("ghdl.a_flags"),
-        ListOfStringOption("ghdl.flags"),
+        ListOfStringOption("ghdl.flags"),  # Removed in v5.0.0
     ]
 
     sim_options = [
@@ -56,9 +55,9 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
         group = parser.add_argument_group("ghdl", description="GHDL specific flags")
         group.add_argument(
             "--gtkwave-fmt",
-            choices=["vcd", "ghw"],
+            choices=["vcd", "fst", "ghw"],
             default=None,
-            help="Save .vcd or .ghw to open in gtkwave",
+            help="Save .vcd, .fst, or .ghw to open in gtkwave",
         )
         group.add_argument("--gtkwave-args", default="", help="Arguments to pass to gtkwave")
 
@@ -105,7 +104,8 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
         self._gtkwave_args = gtkwave_args
         self._backend = backend
         self._vhdl_standard = None
-        self._coverage_test_dirs = set()
+        self._coverage_test_dirs = set()  # For gcov
+        self._coverage_files = set()  # For --coverage
 
     def has_valid_exit_code(self):  # pylint: disable=arguments-differ
         """
@@ -120,6 +120,20 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
         """
         print(str(Path(prefix) / cls.executable))
         return subprocess.check_output([str(Path(prefix) / cls.executable), "--version"]).decode()
+
+    @classmethod
+    def _get_help_output(cls, prefix):
+        """
+        Get the output of 'ghdl --version'
+        """
+        return subprocess.check_output([str(Path(prefix) / cls.executable), "--help"]).decode()
+
+    @classmethod
+    def determine_coverage(cls, prefix):
+        """
+        Determine if GHDL has builtin coverage support
+        """
+        return not re.match(r"coverage ", cls._get_help_output(prefix)) is None
 
     @classmethod
     def determine_backend(cls, prefix):
@@ -178,7 +192,8 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
         """
         Returns True when the simulator supports coverage
         """
-        return cls.determine_backend(cls.find_prefix_from_path()) == "gcc"
+        prefix = cls.find_prefix_from_path()
+        return cls.determine_backend(prefix) == "gcc" or cls.determine_coverage(prefix)
 
     def _has_output_flag(self):
         """
@@ -238,6 +253,9 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
         """
         Returns the command to compile a vhdl file
         """
+        if source_file.compile_options.get("ghdl.flags", []) != []:
+            raise RuntimeError("'ghdl.flags was removed in v5.0.0; use 'ghdl.a_flags' instead")
+
         cmd = [
             str(Path(self._prefix) / self.executable),
             "-a",
@@ -248,18 +266,9 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
         for library in self._project.get_libraries():
             cmd += [f"-P{library.directory!s}"]
 
-        a_flags = source_file.compile_options.get("ghdl.a_flags", [])
-        flags = source_file.compile_options.get("ghdl.flags", [])
-        if flags != []:
-            warn(
-                ("'ghdl.flags' is deprecated and it will be removed in future releases; use 'ghdl.a_flags' instead"),
-                Warning,
-            )
-            a_flags += flags
+        cmd += source_file.compile_options.get("ghdl.a_flags", [])
 
-        cmd += a_flags
-
-        if source_file.compile_options.get("enable_coverage", False):
+        if source_file.compile_options.get("enable_coverage", False) and self._backend == "gcc":
             # Add gcc compilation flags for coverage
             #   -ftest-coverages creates .gcno notes files needed by gcov
             #   -fprofile-arcs creates branch profiling in .gcda database files
@@ -267,7 +276,9 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
         cmd += [source_file.name]
         return cmd
 
-    def _get_command(self, config, output_path, elaborate_only, ghdl_e, wave_file):  # pylint: disable=too-many-branches
+    def _get_command(
+        self, config, output_path, elaborate_only, ghdl_e, test_suite_name, wave_file
+    ):  # pylint: disable=too-many-branches,too-many-arguments
         """
         Return GHDL simulation command
         """
@@ -285,9 +296,17 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
             cmd += ["-o", bin_path]
         cmd += config.sim_options.get("ghdl.elab_flags", [])
         if config.sim_options.get("enable_coverage", False):
-            # Enable coverage in linker
-            cmd += ["-Wl,-lgcov"]
-        cmd += [config.entity_name, config.architecture_name]
+            if self._backend == "gcc":
+                # Enable coverage in linker
+                cmd += ["-Wl,-lgcov"]
+            else:
+                coverage_file = str(Path(output_path) / f"{test_suite_name!s}.json")
+                cmd += ["--coverage", f"--coverage-output={coverage_file!s}"]
+
+        if config.vhdl_configuration_name is not None:
+            cmd += [config.vhdl_configuration_name]
+        else:
+            cmd += [config.entity_name, config.architecture_name]
 
         sim = config.sim_options.get("ghdl.sim_flags", [])
         for name, value in config.generics.items():
@@ -301,6 +320,8 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
                 sim += [f"--wave={wave_file!s}"]
             elif self._gtkwave_fmt == "vcd":
                 sim += [f"--vcd={wave_file!s}"]
+            elif self._gtkwave_fmt == "fst":
+                sim += [f"--fst={wave_file!s}"]
 
         if not ghdl_e:
             cmd += sim
@@ -342,16 +363,19 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
         else:
             data_file_name = None
 
-        cmd = self._get_command(config, script_path, elaborate_only, ghdl_e, data_file_name)
+        cmd = self._get_command(config, script_path, elaborate_only, ghdl_e, test_suite_name, data_file_name)
 
         status = True
 
         gcov_env = environ.copy()
         if config.sim_options.get("enable_coverage", False):
-            # Set environment variable to put the coverage output in the test_output folder
-            coverage_dir = str(Path(output_path) / "coverage")
-            gcov_env["GCOV_PREFIX"] = coverage_dir
-            self._coverage_test_dirs.add(coverage_dir)
+            if self._backend == "gcc":
+                # Set environment variable to put the coverage output in the test_output folder
+                coverage_dir = str(Path(output_path) / "coverage")
+                gcov_env["GCOV_PREFIX"] = coverage_dir
+                self._coverage_test_dirs.add(coverage_dir)
+            else:
+                self._coverage_files.add(str(Path(script_path) / f"{test_suite_name!s}.json"))
 
         try:
             proc = Process(cmd, env=gcov_env)
@@ -378,22 +402,21 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
         compilation_ok = super()._compile_source_file(source_file, printer)
 
         if source_file.compile_options.get("enable_coverage", False):
-            # GCOV gcno files are output to where the command is run,
-            # move it back to the compilation folder
-            source_path = Path(source_file.name)
-            gcno_file = Path(source_path.stem + ".gcno")
-            if Path(gcno_file).exists():
-                new_path = Path(source_file.library.directory) / gcno_file
-                gcno_file.rename(new_path)
+            if self._backend == "gcc":
+                # GCOV gcno files are output to where the command is run,
+                # move it back to the compilation folder
+                source_path = Path(source_file.name)
+                gcno_file = Path(source_path.stem + ".gcno")
+                if Path(gcno_file).exists():
+                    new_path = Path(source_file.library.directory) / gcno_file
+                    gcno_file.rename(new_path)
 
         return compilation_ok
 
-    def merge_coverage(self, file_name, args=None):
+    def _merge_coverage_gcc(self, output_dir, args=None):
         """
-        Merge coverage from all test cases
+        Merge coverage (for gcc backend)
         """
-        output_dir = file_name
-
         # Loop over each .gcda output folder and merge them two at a time
         first_input = True
         for coverage_dir in self._coverage_test_dirs:
@@ -402,8 +425,8 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
                     "gcov-tool",
                     "merge",
                     "-o",
-                    output_dir,
-                    coverage_dir if first_input else output_dir,
+                    str(output_dir),
+                    coverage_dir if first_input else str(output_dir),
                     coverage_dir,
                 ]
                 subprocess.call(merge_command)
@@ -412,8 +435,7 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
                 LOGGER.warning("Missing coverage directory: %s", coverage_dir)
 
         # Find actual output path of the .gcda files (they are deep in hierarchy)
-        dir_path = Path(output_dir)
-        gcda_dirs = {x.parent for x in dir_path.glob("**/*.gcda")}
+        gcda_dirs = {x.parent for x in output_dir.glob("**/*.gcda")}
         assert len(gcda_dirs) == 1, "Expected exactly one folder with gcda files"
         gcda_dir = gcda_dirs.pop()
 
@@ -421,3 +443,28 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
         for library in self._project.get_libraries():
             for gcno_file in Path(library.directory).glob("*.gcno"):
                 shutil.copy(gcno_file, gcda_dir)
+
+    def _merge_coverage_jit(self, output_dir, args=None):
+        """
+        Merge coverage (for jit backend)
+        """
+        cmd = [
+            str(Path(self._prefix) / self.executable),
+            "coverage",
+            "--format=gcovr",
+            "-o",
+            str(output_dir / "gcovr.json"),
+        ]
+        cmd.extend(list(self._coverage_files))
+        subprocess.call(cmd)
+
+    def merge_coverage(self, file_name, args=None):
+        """
+        Merge coverage from all test cases
+        """
+        output_dir = Path(file_name)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        if self._backend == "gcc":
+            self._merge_coverage_gcc(output_dir, args)
+        else:
+            self._merge_coverage_jit(output_dir, args)
