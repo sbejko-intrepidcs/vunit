@@ -110,5 +110,11 @@ SIMULATORS = {
         "vunit_name": "ghdl",
         "win_path_pattern": "git-sdk-64/mingw64/bin",
         "linux_path_pattern": "ghdl/bin",
-    },
+    },    
+    "xsim": {
+        "vunit_name" : "xsim",
+        "win_path_pattern": "C:/Xilinx/Vivado/2019.1/bin",
+        "linux_path_pattern": "Xilinx/Vivado/2019.1/bin",
+        "output_path": "xsim",
+    }
 }
