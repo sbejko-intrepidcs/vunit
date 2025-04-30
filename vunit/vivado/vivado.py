@@ -91,7 +91,13 @@ def _read_compile_order(file_name, fail_on_non_hdl_files):
     with Path(file_name).open("r", encoding="utf-8") as ifile:
         for line in ifile.readlines():
             library_name, file_type, file_name = line.strip().split(",", 2)
-            assert file_type in ("Verilog", "SystemVerilog", "VHDL", "Verilog Header")
+
+            if file_type not in ("Verilog", "VHDL", "Verilog Header"):
+                if fail_on_non_hdl_files:
+                    raise RuntimeError(f"Unsupported compile order file: {file_name}")
+                print(f"Compile order file ignored: {file_name}")
+                continue
+
             libraries.add(library_name)
 
             # Vivado generates duplicate files for different IP:s

@@ -74,10 +74,10 @@ class VUnit(object):  # pylint: disable=too-many-instance-attributes, too-many-p
 
         :example:
 
-          .. code-block:: python
+        .. code-block:: python
 
-             from vunit import VUnit
-             prj = VUnit.from_argv()
+           from vunit import VUnit
+           prj = VUnit.from_argv()
 
         .. IMPORTANT::
           Option ``compile_builtins`` is deprecated and it will be removed in an upcoming release.
@@ -1021,7 +1021,7 @@ other preprocessors. Lowest value first. The order between preprocessors with th
         .. code-block:: python
 
             VU.add_vhdl_builtins(external={
-                'string': ['path/to/custom/file'],
+                             'string': ['path/to/custom/file'],
                 'integer': ['path/to/custom/file']}
             )
 
