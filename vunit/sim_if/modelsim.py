@@ -208,6 +208,11 @@ class ModelSimInterface(VsimSimulatorMixin, SimulatorInterface):  # pylint: disa
             os.makedirs(apath)
 
         if not file_exists(path):
+            vlib_path = str(Path(self._prefix) / "vlib")
+            print(f"Executing: {vlib_path} {library_name} {str(path)}")
+
+            # if not Path(vlib_path).exists():
+                # raise FileNotFoundError(f"Executable not found: {vlib_path}")
             proc = Process([str(Path(self._prefix) / "vlib"), "-unix", path], env=self.get_env())
             proc.consume_output(callback=None)
 

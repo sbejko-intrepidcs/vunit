@@ -16,7 +16,7 @@ from pathlib import Path
 import shutil
 import threading
 from shutil import copyfile
-from ..ostools import Process
+from ..ostools import Process, file_exists
 from . import SimulatorInterface, StringOption, BooleanOption, ListOfStringOption
 from ..exceptions import CompileError
 
@@ -115,8 +115,19 @@ class XSimInterface(SimulatorInterface):
         """
         Setup library mapping
         """
-
         for library in project.get_libraries():
+            # self._libraries[library.name] = library.directory
+            # library.name = library_name ;;; library.directory = path ;; mapped_lib = mapped_lib
+            path = library.directory
+            apath = str(Path(path).parent.resolve())
+            if not file_exists(apath):
+                os.makedirs(apath)
+
+            if not file_exists(path):
+                os.makedirs(path)
+                proc = Process(["xvlog", "-work", library.name], env=self.get_env())
+                proc.consume_output(callback=None)
+            
             self._libraries[library.name] = library.directory
 
     def compile_source_file_command(self, source_file):
@@ -142,6 +153,8 @@ class XSimInterface(SimulatorInterface):
         cmd = []
         for library_name, library_path in self._libraries.items():
             if library_path:
+                # new_path = Path(library_path) / ".." / ".." / ".." / "preprocessed" / Path(library_path).name
+                # new_path = new_path.resolve()
                 cmd += ["-L", f"{library_name}={library_path}"]
             else:
                 cmd += ["-L", library_name]
@@ -149,7 +162,7 @@ class XSimInterface(SimulatorInterface):
 
     @staticmethod
     def work_library_argument(source_file):
-        return ["-work", f"{source_file.library.name}={source_file.library.directory}"]
+        return ["-work", source_file.library.name]
 
     def compile_vhdl_file_command(self, source_file):
         """
