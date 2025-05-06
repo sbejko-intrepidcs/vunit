@@ -13,6 +13,7 @@ from pathlib import Path
 import os
 import re
 import logging
+import sys
 from ..exceptions import CompileError
 from ..ostools import Process, write_file, file_exists, renew_path
 from ..test.suites import get_result_file_name

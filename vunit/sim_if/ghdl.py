@@ -17,7 +17,6 @@ import re
 import shutil
 from json import dump
 from sys import stdout  # To avoid output catched in non-verbose mode
-from warnings import warn
 from ..exceptions import CompileError
 from ..ostools import Process
 from . import SimulatorInterface, ListOfStringOption, StringOption, BooleanOption

@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2024, Lars Asplund lars.anders.asplund@gmail.com
 
 """
 Functions to add builtin VHDL code to a project for compilation
@@ -10,12 +10,11 @@ Functions to add builtin VHDL code to a project for compilation
 
 from pathlib import Path
 from glob import glob
-from warnings import warn
 import logging
 
 from vunit.vhdl_standard import VHDL, VHDLStandard
 from vunit.ui.common import get_checked_file_names_from_globs
-
+from vunit.sim_if.common import simulator_check, simulator_is
 
 LOGGER = logging.getLogger(__name__)
 
@@ -73,6 +72,11 @@ class Builtins(object):
             if not supports_context and file_name.endswith("_context.vhd"):
                 continue
 
+            if (self._simulator_class.name == "xsim") and (
+                    file_name.endswith("vunit_run_context.vhd") or
+                    file_name.endswith("vunit_context.vhd")):
+                continue
+
             self._vunit_lib.add_source_file(file_name)
 
     def _add_data_types(self, external=None):
@@ -85,29 +89,28 @@ class Builtins(object):
                              'integer': ['path/to/custom/file']
                          }.
         """
-        self._add_files(VHDL_PATH / "data_types" / "src" / "*.vhd")
+        if simulator_is("xsim"):
+            self._add_files(VHDL_PATH / "xsim" / "data_types" / "src" / "*.vhd")
 
-        for key in ["string", "integer_vector"]:
-            self._add_files(
-                pattern=str(VHDL_PATH / "data_types" / "src" / "api" / f"external_{key!s}_pkg.vhd")
-                if external is None or key not in external or not external[key] or external[key] is True
-                else external[key],
-                allow_empty=False,
-            )
+        else:
+            self._add_files(VHDL_PATH / "data_types" / "src" / "*.vhd")
 
-    def _add_array_util(self):
+            for key in ["string", "integer_vector"]:
+                self._add_files(
+                    pattern=(
+                        str(VHDL_PATH / "data_types" / "src" / "api" / f"external_{key!s}_pkg.vhd")
+                        if external is None or key not in external or not external[key] or external[key] is True
+                        else external[key]
+                    ),
+                    allow_empty=False,
+                )
+
+    @staticmethod
+    def _add_array_util():
         """
-        Add array utility
+        Array utility was removed in v5.0.0. Raise a runtime error.
         """
-        if not self._vhdl_standard >= VHDL.STD_2008:
-            raise RuntimeError("Array util only supports vhdl 2008 and later")
-
-        arr_deprecation_note = (
-            "'array_t' is deprecated and it will removed in future releases; use 'integer_array_t' instead"
-        )
-        warn(arr_deprecation_note, Warning)
-
-        self._vunit_lib.add_source_files(VHDL_PATH / "array" / "src" / "*.vhd")
+        raise RuntimeError("Array util was removed in v5.0.0; use 'integer_array_t' instead")
 
     def _add_random(self):
         """
@@ -125,7 +128,11 @@ class Builtins(object):
         if not self._vhdl_standard >= VHDL.STD_2008:
             raise RuntimeError("Communication package only supports vhdl 2008 and later")
 
-        self._add_files(VHDL_PATH / "com" / "src" / "*.vhd")
+        if simulator_is("xsim"):
+            self._add_files(VHDL_PATH / "xsim" / "com" / "src" / "*.vhd")
+
+        else:
+            self._add_files(VHDL_PATH / "com" / "src" / "*.vhd")
 
     def _add_verification_components(self):
         """
@@ -133,7 +140,12 @@ class Builtins(object):
         """
         if not self._vhdl_standard >= VHDL.STD_2008:
             raise RuntimeError("Verification component library only supports vhdl 2008 and later")
-        self._add_files(VHDL_PATH / "verification_components" / "src" / "*.vhd")
+
+        if simulator_is("xsim"):
+            self._add_files(VHDL_PATH / "xsim" / "verification_components" / "src" / "*.vhd")
+
+        else:
+            self._add_files(VHDL_PATH / "verification_components" / "src" / "*.vhd")
 
     def _add_library_if_not_exist(self, library_name, message):
         """
@@ -186,6 +198,8 @@ in your VUnit Git repository? You have to do this first if installing using setu
                     "ScoreboardGenericPkg.vhd",
                     "ScoreboardPkg_int.vhd",
                     "ScoreboardPkg_slv.vhd",
+                    "MemoryPkg.vhd",
+                    "MemoryGenericPkg.vhd",
                 ]
             ):
                 continue
@@ -195,6 +209,8 @@ in your VUnit Git repository? You have to do this first if installing using setu
                 in [
                     "ScoreboardPkg_int_c.vhd",
                     "ScoreboardPkg_slv_c.vhd",
+                    "MemoryPkg_c.vhd",
+                    "MemoryPkg_orig_c.vhd",
                 ]
             ):
                 continue
@@ -253,7 +269,7 @@ in your VUnit Git repository? You have to do this first if installing using setu
         """
         self._vunit_lib.add_source_files(VERILOG_PATH / "vunit_pkg.sv")
 
-    def add_vhdl_builtins(self, external=None):
+    def add_vhdl_builtins(self, external=None, use_external_log=None):
         """
         Add vunit VHDL builtin libraries
 
@@ -269,17 +285,38 @@ in your VUnit Git repository? You have to do this first if installing using setu
             })
         """
         self._add_data_types(external=external)
-        self._add_vhdl_logging()
-        self._add_files(VHDL_PATH / "*.vhd")
-        for path in (
-            "core",
-            "string_ops",
-            "check",
-            "dictionary",
-            "run",
-            "path",
-        ):
-            self._add_files(VHDL_PATH / path / "src" / "*.vhd")
+        if simulator_is("xsim"):
+            self._add_files(VHDL_PATH / "*.vhd")
+            for path in (
+                "string_ops",
+                "dictionary",
+                "core",
+                "logging",
+                "check",
+                "run",
+            ):
+                self._add_files(VHDL_PATH / "xsim" / path / "src" / "*.vhd")
+
+        else:
+            self._add_vhdl_logging()
+            self._add_files(VHDL_PATH / "*.vhd")
+            for path in (
+                "core",
+                "string_ops",
+                "check",
+                "dictionary",
+                "run",
+                "path",
+            ):
+                self._add_files(VHDL_PATH / path / "src" / "*.vhd")
+
+            logging_files = glob(str(VHDL_PATH / "logging" / "src" / "*.vhd"))
+            for logging_file in logging_files:
+                if logging_file.endswith("common_log_pkg-body.vhd") and use_external_log:
+                    self._add_files(Path(use_external_log))
+                    continue
+
+                self._add_files(Path(logging_file))
 
 
 def osvvm_is_installed():
